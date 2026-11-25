@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#e5e9e4" />
+    <meta name="description" content="Inspect and drive a jet-black 1969 Ford Mustang based on the John Bowe model by vecarz." />
+    <title>1969 Mustang | Vehicle Preview</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="preload" href="/models/mustang.glb" as="fetch" crossorigin />
+  </head>
+  <body>
+    <a class="skip-link" href="#vehicle">Skip to vehicle preview</a>
+    <main class="preview" id="vehicle">
+      <header class="masthead">
+        <div>
+          <h1>1969 Mustang</h1>
+          <p>John Bowe Fastback in jet black</p>
+        </div>
+        <fieldset class="mode-toggle segmented" id="modes" disabled aria-label="Preview mode">
+          <button type="button" data-mode="inspect" aria-pressed="true">Inspect</button>
+          <button type="button" data-mode="drive" aria-pressed="false">Drive</button>
+        </fieldset>
+      </header>
+
+      <div class="workspace">
+        <section class="display" aria-label="3D vehicle preview">
+          <div class="viewport" id="viewport" aria-busy="true">
+            <canvas id="canvas" role="img" tabindex="-1" aria-label="Interactive 3D model of the jet-black 1969 Mustang"></canvas>
+            <div class="loading" id="loading" role="status">
+              <div class="vehicle-skeleton" aria-hidden="true"></div>
+              <p>Loading the vehicle…</p>
+            </div>
+            <div class="failure" id="failure" role="alert" hidden>
+              <h2>Vehicle preview unavailable</h2>
+              <p id="failure-detail"></p>
+              <button type="button" id="retry">Reload preview</button>
+            </div>
+            <div class="telemetry" id="telemetry" aria-label="Driving telemetry" hidden>
+              <div class="speed-display"><span id="speed">0</span><span>km/h</span></div>
+              <dl>
+                <div><dt>Gear</dt><dd id="gear">1</dd></div>
+                <div><dt>RPM</dt><dd id="rpm">850</dd></div>
+                <div><dt>Slip</dt><dd id="slip">0°</dd></div>
+                <div id="condition" hidden><dt>Condition</dt><dd id="condition-value">100%</dd></div>
+              </dl>
+            </div>
+            <button type="button" class="fullscreen-drive" id="fullscreen-drive" aria-controls="viewport" hidden>Fullscreen</button>
+            <div class="circuit-map" id="route-guide" hidden>
+              <canvas id="circuit-map" width="340" height="228" role="img" aria-label="Circuit layout and car position"></canvas>
+              <p id="next-turn">Straight ahead</p>
+            </div>
+            <div class="drive-input" id="drive-input" role="group" aria-label="Steering and pedals" hidden>
+              <div>
+                <button type="button" data-action="KeyA" aria-label="Steer left">Left</button>
+                <button type="button" data-action="KeyD" aria-label="Steer right">Right</button>
+              </div>
+              <div>
+                <button type="button" data-action="KeyW">Throttle</button>
+                <button type="button" data-action="KeyS">Brake</button>
+                <button type="button" data-action="Space">Handbrake</button>
+              </div>
+            </div>
+            <div class="race-over" id="race-over" aria-labelledby="race-over-title" role="group" hidden>
+              <div>
+                <h2 id="race-over-title">Game over</h2>
+                <p id="race-over-reason"></p>
+                <button type="button" id="race-restart">Restart race</button>
+              </div>
+            </div>
+          </div>
+          <div class="viewbar">
+            <fieldset class="angles segmented" id="angles" disabled aria-label="Camera view">
+              <button type="button" data-camera="front" aria-pressed="true">Front ¾</button>
+              <button type="button" data-camera="side" aria-pressed="false">Side</button>
+              <button type="button" data-camera="rear" aria-pressed="false">Rear ¾</button>
+              <button type="button" data-camera="cabin" aria-pressed="false">Cabin</button>
+              <button type="button" data-camera="engine" aria-pressed="false">Engine</button>
+              <button type="button" data-camera="trunk" aria-pressed="false">Trunk view</button>
+            </fieldset>
+            <span class="orbit-hint" id="orbit-hint">Drag to orbit. Scroll to zoom.</span>
+            <button class="reset" type="button" id="reset" disabled>Reset car &amp; camera</button>
+          </div>
+        </section>
+
+        <aside class="inspector" aria-label="Vehicle controls">
+          <fieldset class="settings" id="controls" disabled>
+            <legend class="sr-only">Vehicle controls</legend>
+            <div class="setting-group" id="inspection-controls">
+              <h2>Body &amp; cabin</h2>
+              <div class="button-grid">
+                <button type="button" data-panel="doorL" aria-pressed="false">Driver door</button>
+                <button type="button" data-panel="doorR" aria-pressed="false">Passenger door</button>
+                <button type="button" data-panel="hood" aria-pressed="false">Hood</button>
+                <button type="button" data-panel="trunk" aria-pressed="false">Trunk</button>
+              </div>
+              <div class="window-controls">
+                <label for="window-l">Driver window <output for="window-l" id="window-l-position">Up</output></label>
+                <input type="range" id="window-l" name="driver-window" min="0" max="100" step="1" value="0" aria-valuetext="Up" />
+                <label for="window-r">Passenger window <output for="window-r" id="window-r-position">Up</output></label>
+                <input type="range" id="window-r" name="passenger-window" min="0" max="100" step="1" value="0" aria-valuetext="Up" />
+              </div>
+              <button class="full-button" type="button" id="lock" aria-pressed="false">Lock doors</button>
+              <button class="full-button rev-engine" type="button" id="rev-engine">Rev engine</button>
+            </div>
+
+            <div class="setting-group" id="drive-controls" hidden>
+              <h2>Driving controls</h2>
+              <p class="keyboard"><kbd>W</kbd> throttle <kbd>S</kbd> brake <kbd>A</kbd> <kbd>D</kbd> steer <kbd>Space</kbd> handbrake</p>
+              <div class="gear-select">
+                <label for="drive-course">Course</label>
+                <select id="drive-course" name="drive-course">
+                  <option value="circuit" selected>Race circuit</option>
+                  <option value="pad">Speed test pad</option>
+                </select>
+              </div>
+              <div class="gear-select">
+                <label for="select-gear">Transmission</label>
+                <select id="select-gear" name="transmission">
+                  <option value="auto" selected>Drive (automatic)</option>
+                  <option value="-1">Reverse</option>
+                  <option value="0">Neutral</option>
+                  <option value="1">1st gear</option>
+                  <option value="2">2nd gear</option>
+                  <option value="3">3rd gear</option>
+                  <option value="4">4th gear</option>
+                  <option value="5">5th gear</option>
+                </select>
+              </div>
+              <button class="full-button" type="button" id="drift" aria-pressed="false">Lower rear grip</button>
+              <button class="full-button launch-setup" type="button" id="drag-launch" aria-pressed="false">Drag launch setup</button>
+              <p class="control-feedback" id="control-feedback" aria-live="polite"></p>
+              <details class="tuning">
+                <summary>Vehicle tuning</summary>
+                <div id="tuning-inputs"></div>
+              </details>
+            </div>
+
+            <div class="setting-group">
+              <h2>Lighting</h2>
+              <div class="button-grid" role="group" aria-label="Ambient light">
+                <button type="button" data-lighting="day" aria-pressed="true">Day</button>
+                <button type="button" data-lighting="night" aria-pressed="false">Night</button>
+              </div>
+              <div class="light-controls">
+                <div>
+                  <p id="headlight-label">Headlights</p>
+                  <div class="segmented" role="group" aria-labelledby="headlight-label">
+                    <button type="button" data-headlights="off" aria-pressed="true">Off</button>
+                    <button type="button" data-headlights="low" aria-pressed="false">Low</button>
+                    <button type="button" data-headlights="high" aria-pressed="false">High</button>
+                  </div>
+                </div>
+                <div>
+                  <p id="signal-label">Signals</p>
+                  <div class="segmented" role="group" aria-labelledby="signal-label">
+                    <button type="button" data-indicator="left" aria-pressed="false">Left</button>
+                    <button type="button" data-indicator="right" aria-pressed="false">Right</button>
+                    <button type="button" data-indicator="hazards" aria-pressed="false">Hazards</button>
+                  </div>
+                </div>
+                <div>
+                  <p id="neon-label">Neon strips</p>
+                  <div class="segmented stripe-layout" role="group" aria-label="Stripe layout">
+                    <button type="button" data-stripe-layout="triple" aria-pressed="true">Three strips</button>
+                    <button type="button" data-stripe-layout="single" aria-pressed="false">Single strip</button>
+                  </div>
+                  <div class="stripe-palette" role="group" aria-labelledby="neon-label">
+                    <button type="button" data-neon="off" aria-label="Off" title="Off" aria-pressed="false"></button>
+                    <button type="button" data-neon="orange" aria-label="Orange" title="Orange" aria-pressed="true"></button>
+                    <button type="button" data-neon="red" aria-label="Red" title="Red" aria-pressed="false"></button>
+                    <button type="button" data-neon="violet" aria-label="Violet" title="Violet" aria-pressed="false"></button>
+                    <button type="button" data-neon="gray" aria-label="Light gray" title="Light gray" aria-pressed="false"></button>
+                    <button type="button" data-neon="white" aria-label="White" title="White" aria-pressed="false"></button>
+                    <button type="button" data-neon="cream" aria-label="Cream" title="Cream" aria-pressed="false"></button>
+                    <button type="button" data-neon="pista" aria-label="Pista green" title="Pista green" aria-pressed="false"></button>
+                    <button type="button" data-neon="mixed" aria-label="Orange + red" title="Orange + red" aria-pressed="false"></button>
+                  </div>
+                </div>
+              </div>
+              <button class="full-button brake-light" type="button" id="brake-light" aria-pressed="false">Brake lamps</button>
+            </div>
+
+            <div class="setting-group sound-settings">
+              <button class="full-button" type="button" id="sound" aria-pressed="false">Vehicle sound</button>
+              <p class="control-feedback" id="sound-feedback" aria-live="polite"></p>
+            </div>
+          </fieldset>
+        </aside>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
